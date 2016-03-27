@@ -1,0 +1,63 @@
+---
+title: "ML Project"
+author: "Kerry Ryan"
+date: "March 27, 2016"
+output: html_document
+---
+
+```{r echo=FALSE}
+#Set the working directory
+setwd("C:/Users/kerry_000/Documents/GitHub/Machine_Learning_Project")
+```
+
+#Predicting Exercise Performance Through Fitness Tracker Data  
+###Summary  
+The goal of this project is to predict the manner in which fitness tracker users did the exercise. This is the "classe" variable in the training set. The lasso model was determined to be the best model and was used to build and test the model.  The model was then used to predict the 20 test cases required for the exam.  A 100% accuracy on the prediction was achieved.
+```{r cache=TRUE}
+#load the data
+trainDat = read.csv("pml-training.csv")
+testDat = read.csv("pml-testing.csv")
+set.seed(23356)
+```
+###Feature selection: improve training performance and reduce overfitting  
+According to Wikipedia (https://en.wikipedia.org/wiki/Feature_selection#Feature_selection_embedded_in_learning_algorithms) some learning algorithms have feature selection embedded.  Investigate feature selection using LASSO and Regularized trees.  
+**I stopped the LASSO model in caret on the training data after 40 mins.  Some sort of initial variable selection is required before even running a training model.   
+**I investigated the raw training and testing data files and concluded that there are several fields I can disregard as they either have no values collected or are NA
+```{r}
+#remove fields
+vars = c(-1, -3:-6, -12:-36,-50:-59,-69:-83, -87:-101, -103:-112, -125:-139, -141:-150)
+trainDat<- trainDat[,vars]
+testDat <- testDat[,vars]
+```
+  
+I tried various models (lasso, gbm, and rf) on a 10% sample to see which performed best.  The lasso model did best on the small sample.  I then repartitioned the training and testing data into a 70/30 split and ran the lasso model.
+```{r}
+#break data into training and test sets
+library(caret)
+inTrain=createDataPartition(trainDat$classe, p=0.70)[[1]]
+training=trainDat[inTrain,]
+testing=trainDat[-inTrain,]
+```
+  
+Fit the final lasso model
+```{r cache=TRUE, message=FALSE}
+#fit a lasso model to the training data
+lassoFit <- train(classe ~ ., model="lasso", data=training, trControl=trainControl(number=3, repeats=3), preProc=c("center", "scale") ) 
+lassoFit
+```
+  
+Now predict on the testing set to check accuracy.  
+
+```{r cache=TRUE}
+lassoPred <- predict(lassoFit, testing)
+confusionMatrix(lassoPred, testing$classe)$overall[1]
+```
+A 99.7% accuracy on the testing set.  
+  
+###Final Test
+Apply the model on the test data for the exam.
+```{r}
+finalPred<- predict(lassoFit, testDat)
+finalPred
+```
+100% correct.
